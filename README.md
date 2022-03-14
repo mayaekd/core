@@ -1,1 +1,1 @@
-Code for the Core Model
+Code for the CORE Model
