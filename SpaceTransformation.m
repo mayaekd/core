@@ -23,7 +23,7 @@ classdef SpaceTransformation
         % MotorPointListList = {
         % {MotorPoint([3; 4]); MotorPoint([4; 4]); MotorPoint([3; 5])};
         % {MotorPoint([6; 5]); MotorPoint([6; 6])} };
-        function ResultingSpace = CreateSpace(obj, MotorPointListList)
+        function ResultingSpace = CreateSpace(obj, MotorPointListList, MotorBounds, MaxDistanceWithActivation)
             ClusterList = cell(length(MotorPointListList), 1);
                 % EX| ClusterList = {[]; []}
             for cIndex = 1:length(ClusterList) % EX| cIndex = 1:2
@@ -51,7 +51,7 @@ classdef SpaceTransformation
                     % Turning all these motor points into junctures, to 
                     % subsequently be added to appropriate clusters -- 
                     % example results shown below
-                    CurrentJuncture = CurrentMotorPoint.MakeJuncture(obj.TransformationFunction);
+                    CurrentJuncture = CurrentMotorPoint.MakeJuncture(obj);
                     CurrentJunctureList{jIndex, 1} = CurrentJuncture;
                 end
                 CurrentCluster = Cluster(CurrentJunctureList);
@@ -69,7 +69,7 @@ classdef SpaceTransformation
                     % EX| MPC = [6; 5] & PPC = [4; 25]
                     % EX| MPC = [6; 6] & PPC = [4; 36]
             end
-            ResultingSpace = Space(ClusterList, obj);
+            ResultingSpace = Space(ClusterList, obj, MotorBounds, MaxDistanceWithActivation);
                 % EX| ResultingSpace.Clusters = {ClusterA; ClusterB}
                 % EX| ResultingSpace.SpaceTransformation = obj
         end
