@@ -108,9 +108,9 @@ classdef Cluster
         end
         
         
-        % FROM TRAJECTORY -- SUMMED & CAPPED AT 1
+        % FROM TRAJECTORY -- AVERAGE
         % Finding the sum of activations from the cluster to each point on
-        % the perceptual trajectory, and putting a cap on activation at 1
+        % the perceptual trajectory, and dividing by the number of points
         function Activation = FindTrajectoryActivationAverage(obj, ...
                 Trajectory, HighestActivation, DropoffSlope)
             SumOfActivations = 0;

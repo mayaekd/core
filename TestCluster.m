@@ -4,6 +4,27 @@
 % Concept by Maya Davis and Melissa A. Redford
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%% METHODS TESTED
+%  Instantiation
+%  FindActivation
+%  FindSilhouetteActivation
+%  FindTrajectoryActivationAverage
+%  FindTrajectoryActivationSum
+%  FindActivationWithWindow
+%  DistanceToActivationMap
+%  DistanceToActivationMapLinear
+%  CombineActivation
+%  AverageDistanceToTrajectory
+%  AverageDistanceToSilhouette
+%  AverageDistancesToTrajectoryVector
+%  AverageDistanceToPoint
+%  Center
+%  MotorPlottingInfo
+%  PerceptualPlottingInfo
+%  Center_AverageJunctureAll
+
+%% TESTS
+
 function tests = TestCluster
     tests = functiontests(localfunctions);
 end
@@ -46,17 +67,17 @@ function TestFindActivation(testCase)
         testCase.TestData.Silhouette1, 5, testCase.TestData.Trajectory1, ...
         1, 0.5);
 
-    expActivation1 = 1;
-    expActivation2 = 1;
-    expActivation3 = 0.8944;
-    expActivation4 = 0.5809;
+    expActivation1 = 0.78;
+    expActivation2 = 0.78;
+    expActivation3 = 0.38;
+    expActivation4 = 0.18;
     expActivation5 = 0;
 
-    verifyEqual(testCase, actActivation1, expActivation1);
-    verifyEqual(testCase, actActivation2, expActivation2);
+    verifyEqual(testCase, actActivation1, expActivation1, "AbsTol", 0.01);
+    verifyEqual(testCase, actActivation2, expActivation2, "AbsTol", 0.01);
     verifyEqual(testCase, actActivation3, expActivation3, "AbsTol", 0.01);
     verifyEqual(testCase, actActivation4, expActivation4, "AbsTol", 0.01);
-    verifyEqual(testCase, actActivation5, expActivation5);
+    verifyEqual(testCase, actActivation5, expActivation5, "AbsTol", 0.01);
 
 end
 
@@ -121,7 +142,6 @@ function TestFindTrajectoryActivationAverage(testCase)
     verifyEqual(testCase,actActivation6,expActivation6, "AbsTol", 0.01);
 end
 
-
 function TestFindTrajectoryActivationSum(testCase)
     actActivation1 = ...
         testCase.TestData.Cluster1Transf1.FindTrajectoryActivationSum( ...
@@ -180,12 +200,12 @@ function TestFindActivationWithWindow(testCase)
         testCase.TestData.Cluster3Transf2.FindActivationWithWindow( ...
         testCase.TestData.Silhouette1, testCase.TestData.Trajectory1, ...
         6, 4, 1, 0.8, 0.3);
-    expActivation1 = 0.77;
-    expActivation2 = 1.24;
-    expActivation3 = 1.72;
-    expActivation4 = 1.43;
+    expActivation1 = 0.61;
+    expActivation2 = 0.77;
+    expActivation3 = 1.35;
+    expActivation4 = 0.43;
     expActivation5 = 0.00;
-    expActivation6 = 0.14;
+    expActivation6 = 0.05;
     verifyEqual(testCase, actActivation1, expActivation1, "AbsTol", 0.01);
     verifyEqual(testCase, actActivation2, expActivation2, "AbsTol", 0.01);
     verifyEqual(testCase, actActivation3, expActivation3, "AbsTol", 0.01);
