@@ -4,69 +4,81 @@
 % Concept by Maya Davis and Melissa A. Redford
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+%% METHOD LIST
+%  PerceptualTrajectory
+% 
+%  DISTANCE
+%  DistanceToTrajectory
+%  DistanceVectorToTrajectory
+%
+%  ACTIVATION
+%  ActivationOfPerceptualMatrix
+%
+%  PLOTTING
+%  PlottingInfo
+%  PlottingInfo3D
+%  Plot
+
+%% CLASS DEFINITION
 classdef PerceptualTrajectory
     % A perceptual trajectory consists of its timestamps & the perceptual
     % points at those times
     properties
-        Points;
         CoordinateMatrix;
+        xCoordinates; % For plotting
+        yCoordinates; % For plotting
+        zCoordinates; % For plotting
+        Length;
+        Dimensions;
     end
     
     methods
         % Creating an object
-        function obj = PerceptualTrajectory(PerceptualPointCellArray)
-            obj.Points = PerceptualPointCellArray;
-            CoordinateMatrix = zeros(length(PerceptualPointCellArray{1,1}.Coordinates),length(PerceptualPointCellArray));
-            for p = 1:length(PerceptualPointCellArray)
-                CoordinateMatrix(:,p) = PerceptualPointCellArray{p,1}.Coordinates;
+        function obj = PerceptualTrajectory(CoordinateMatrix, CoordinateOptions)
+            arguments
+                CoordinateMatrix (:,:) {mustBeNumeric}
+                CoordinateOptions.xRowIndex {mustBeNumeric} = 1
+                CoordinateOptions.yRowIndex {mustBeNumeric} = 2
+                CoordinateOptions.zRowIndex {mustBeNumeric} = nan
+                CoordinateOptions.xCoordinates (1,:) = nan
+                CoordinateOptions.yCoordinates (1,:) = nan
+                CoordinateOptions.zCoordinates (1,:) = nan
             end
             obj.CoordinateMatrix = CoordinateMatrix;
-        end
-
-        function perceptualPoint = ClosestPartToOtherPoint(obj, otherPoint)
-            closestPoint = obj.Points{1,1};
-            minDistance = otherPoint.Distance(closestPoint);
-            for pIndex = 1:length(obj.Points)
-                CurrentTrajectoryPoint = obj.Points{pIndex, 1};
-                CurrentDistanceFromPoint = otherPoint.Distance(...
-                    CurrentTrajectoryPoint);
-                if CurrentDistanceFromPoint < minDistance
-                    closestPoint = CurrentTrajectoryPoint;
-                    minDistance = CurrentDistanceFromPoint;
-                end
+            obj.xCoordinates = CoordinateMatrix(CoordinateOptions.xRowIndex, :);
+            obj.yCoordinates = CoordinateMatrix(CoordinateOptions.yRowIndex, :);
+            if isnan(CoordinateOptions.zRowIndex)
+                obj.zCoordinates = nan;
+            else
+                obj.zCoordinates = CoordinateMatrix(CoordinateOptions.zRowIndex, :);
             end
-            perceptualPoint = closestPoint;
-        end
 
-        
-        % Plotting info
-        function [xValues, yValues, colorValues] = PlottingInfo(obj, color1, color2)
-            % Initialize
-            xValues = zeros(length(obj.Points), 1);
-            yValues = zeros(length(obj.Points), 1);
-            for i = 1:length(obj.Points)
-                xValues(i,1) = obj.Points{i,1}.x;
-                yValues(i,1) = obj.Points{i,1}.y;
+            % If there are provided plotting coordinates, override with
+            % them
+            if ~isnan(CoordinateOptions.xCoordinates)
+                obj.xCoordinates = CoordinateOptions.xCoordinates;
             end
-            colorValues1 = transpose(linspace(color1(1,1), color2(1,1), length(obj.Points)));
-            colorValues2 = transpose(linspace(color1(1,2), color2(1,2), length(obj.Points)));
-            colorValues3 = transpose(linspace(color1(1,3), color2(1,3), length(obj.Points)));
-            colorValues = horzcat(colorValues1, colorValues2, colorValues3);
-        end
-        
-        % Plotting
-        function Plot(obj, axes, color1, color2)
-            [xValues, yValues, colorValues] = obj.PlottingInfo(color1, color2);
-            scatter(axes, xValues, yValues, 50, colorValues, "filled", "Marker", "hexagram");
+            if ~isnan(CoordinateOptions.yCoordinates)
+                obj.yCoordinates = CoordinateOptions.yCoordinates;
+            end
+            if ~isnan(CoordinateOptions.zCoordinates)
+                obj.zCoordinates = CoordinateOptions.zCoordinates;
+            end
+
+            [obj.Dimensions, obj.Length] = size(CoordinateMatrix);
         end
 
+        %% DISTANCE
+        %  FUNCTIONS
+        %  DistanceToTrajectory
+        %  DistanceVectorToTrajectory
         function Distance = DistanceToTrajectory(obj, OtherTrajectory)
             DistanceVector = obj.DistanceVectorToTrajectory(OtherTrajectory);
             Distance = mean(DistanceVector);
         end
 
-        % Find the distance between the perceptual trajectory and another, using
-        % uniform shrinking if they don't have the same lengths
+        % Find the distance between the perceptual trajectory and another, 
+        % using uniform shrinking if they don't have the same lengths
         % EXAMPLE: obj.Points is the set of points with coordinates
         % [1;2], [4;5], [10;17], [7;14], [19;2]
         % and OtherTrajectory.Points is the set of points with coordinates
@@ -75,30 +87,30 @@ classdef PerceptualTrajectory
         % [1;2], [2;3], [3;4], [4;5], [6;9], [8;13], [10;17], [9;16], [8;15], [7;14], [11;10], [15;6], [19;2]
         % [1;4], [3;5], [5;6], [3;4], [1;2], [2;2], [3;2], [4;5], [5;8], [7;10], [9;12], [7;9], [5;6]
         function DistanceVector = DistanceVectorToTrajectory(obj, OtherTrajectory)
-            % FIRST GETTING THE CURRENT COORDINATES INTO A MATRIX FORMAT
-            CoordinateLength = length(obj.Points{1,1}.Coordinates);
-                % EX| CoordinateLength = 2
-            StartingCoordinateListA = zeros(CoordinateLength, length(obj.Points));
-                % EX| StartingCoordinateListA = [0 0 0 0 0; 0 0 0 0 0]
-            StartingCoordinateListB = zeros(CoordinateLength, length(OtherTrajectory.Points));
-                % EX| StartingCoordinateListA = [0 0 0 0 0 0 0; 0 0 0 0 0 0 0]
-            for p = 1:length(obj.Points)
-                StartingCoordinateListA(:,p) = obj.Points{p,1}.Coordinates;
-            end
+            StartingCoordinateListA = obj.CoordinateMatrix;
                 % EX| StartingCoordinateListA = [1 4 10 7 19; 2 5 17 14 2]
-            for p = 1:length(OtherTrajectory.Points)
-                StartingCoordinateListB(:,p) = OtherTrajectory.Points{p,1}.Coordinates;
-            end
+            StartingCoordinateListB = OtherTrajectory.CoordinateMatrix;
                 % EX| StartingCoordinateListB = [1 5 1 3 5 9 5; 4 6 2 2 8 12 6]
+            assert(obj.Length == OtherTrajectory.Length, "The " + ...
+                "perceptual trajectories must have the same number " + ...
+                "of coordinates but one of them is " + obj.Length + ...
+                " dimensions and the other is " + ...
+                OtherTrajectory.Length + " dimensions")
+            CoordinateLength = obj.Dimensions;
+                % EX| CoordinateLength = 2
+            TrajectoryLengthA = size(StartingCoordinateListA, 2);
+                % EX| TrajectoryLengthA = 5
+            TrajectoryLengthB = size(StartingCoordinateListB, 2);
+                % EX| TrajectoryLengthB = 7
 
             % MAKING THE NECESSARY INPUTS TO USE TO FIND THE EXPANDED
             % COORDINATES
-            LengthOfExpandedPointLists = lcm(length(obj.Points) - 1, ...
-                length(OtherTrajectory.Points) - 1) + 1;
+            LengthOfExpandedPointLists = lcm(TrajectoryLengthA - 1, ...
+                TrajectoryLengthB - 1) + 1;
                 % EX| LengthOfExpandedPointLists = 13
-            StepA = (LengthOfExpandedPointLists - 1)/(length(obj.Points) - 1);
+            StepA = (LengthOfExpandedPointLists - 1)/(TrajectoryLengthA - 1);
                 % EX| StepA = (13 - 1)/(5 - 1) = 12/4 = 3
-            StepB = (LengthOfExpandedPointLists - 1)/(length(OtherTrajectory.Points) - 1);
+            StepB = (LengthOfExpandedPointLists - 1)/(TrajectoryLengthB - 1);
                 % EX| StepB = (13 - 1)/(7 - 1) = 12/6 = 2
             StartingInputA = 1:StepA:LengthOfExpandedPointLists;
                 % EX| StartingInputA = 0:3:12 = [0 3 6 9 12]
@@ -119,7 +131,8 @@ classdef PerceptualTrajectory
                 StartingCoordinateRowA = StartingCoordinateListA(c,:);
                     % EX| c = 1: StartingCoordinateRow = [1 4 10 7 19]
                     % EX| c = 2: StartingCoordinateRow = [2 5 17 14 2]
-                ExpandedCoordinateRowA = interp1(StartingInputA, StartingCoordinateRowA, EndingInput);
+                ExpandedCoordinateRowA = interp1(StartingInputA, ...
+                    StartingCoordinateRowA, EndingInput);
                     % EX| c = 1: ExpandedCoordinateRowA 
                     % EX| = [1 2 3 4 6 8 10 9 8 7 11 15 19]
                     % EX| c = 2: ExpandedCoordinateRowA
@@ -130,7 +143,8 @@ classdef PerceptualTrajectory
                 StartingCoordinateRowB = StartingCoordinateListB(c,:);
                     % EX| c = 1: StartingCoordinateRow = [1 5 1 3 5 9 5]
                     % EX| c = 2: StartingCoordinateRow = [4 6 2 2 8 12 6]
-                ExpandedCoordinateRowB = interp1(StartingInputB, StartingCoordinateRowB, EndingInput);
+                ExpandedCoordinateRowB = interp1(StartingInputB, ...
+                    StartingCoordinateRowB, EndingInput);
                     % EX| c = 1: ExpandedCoordinateRowB
                     % EX| = [1 3 5 3 1 2 3 4 5 7 9 7 5]
                     % EX| c = 2: ExpandedCoordinateRowB
@@ -147,5 +161,65 @@ classdef PerceptualTrajectory
             SumOfSquares = sum(DifferencesSquared, 1);
             DistanceVector = sqrt(SumOfSquares);
         end
+
+        %% ACTIVATION
+        %  ActivationOfPerceptualMatrix
+        function Activation = ActivationOfPerceptualMatrix(obj, ...
+                PerceptualMatrix, HighestActivation, DropoffSlope)
+            NumCoord = size(obj.CoordinateMatrix, 1);
+            assert(NumCoord == size(PerceptualMatrix, 1), "The " + ...
+                "perceptual trajectory and perceptual point matrix " + ...
+                "must have the same number of dimensions (i.e. the " + ...
+                "dimensions of perceputal space must be " + ...
+                "consistent), but the trajectory has " + NumCoord + ...
+                " perceptual dimensions and the matrix has " + ...
+                size(PerceptualMatrix, 1) + " dimensions.")
+            SumOfSquaresMatrix = zeros(size(PerceptualMatrix, 2), obj.Length);
+            for d = 1:NumCoord
+                DifferencesSquared = (transpose(PerceptualMatrix(d, :)) - obj.CoordinateMatrix(d, :)).^2;
+                SumOfSquaresMatrix = SumOfSquaresMatrix + DifferencesSquared;
+            end
+            DistanceMatrix = sqrt(SumOfSquaresMatrix);
+            ActivationMatrix = max(0, HighestActivation - ...
+                (DropoffSlope * DistanceMatrix));
+            Activation = mean(ActivationMatrix, "all");
+        end
+
+        %% PLOTTING
+        %  FUNCTIONS
+        %  PlottingInfo
+        %  PlottingInfo3D
+        %  Plot
+
+        % Plotting info
+        function [xValues, yValues, colorValues] = PlottingInfo(obj, color1, color2)
+            % Initialize
+            xValues = obj.xCoordinates;
+            yValues = obj.yCoordinates;
+            colorValues1 = transpose(linspace(color1(1,1), color2(1,1), length(xValues)));
+            colorValues2 = transpose(linspace(color1(1,2), color2(1,2), length(xValues)));
+            colorValues3 = transpose(linspace(color1(1,3), color2(1,3), length(xValues)));
+            colorValues = horzcat(colorValues1, colorValues2, colorValues3);
+        end
+
+        % Plotting info 3D
+        function [xValues, yValues, zValues, colorValues] = PlottingInfo3D(obj, color1, color2)
+            % Initialize
+            xValues = obj.xCoordinates;
+            yValues = obj.yCoordinates;
+            zValues = obj.zCoordinates;
+            colorValues1 = transpose(linspace(color1(1,1), color2(1,1), length(xValues)));
+            colorValues2 = transpose(linspace(color1(1,2), color2(1,2), length(xValues)));
+            colorValues3 = transpose(linspace(color1(1,3), color2(1,3), length(xValues)));
+            colorValues = horzcat(colorValues1, colorValues2, colorValues3);
+        end
+        
+        % Plotting
+        function Plot(obj, axes, color1, color2)
+            [xValues, yValues, colorValues] = obj.PlottingInfo(color1, color2);
+            scatter(axes, xValues, yValues, 200, colorValues, "filled", "Marker", "hexagram");
+        end
+
+
     end
 end

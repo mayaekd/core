@@ -4,70 +4,114 @@
 % Concept by Maya Davis and Melissa A. Redford
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% METHODS LIST
+%% METHOD LIST
 %  MotorTrajectory
 %  PlottingInfo
+%  PlottingInfo3D
 %  Plot
 %  FindPerceptualTrajectory
 %  DistanceToTrajectory
+%  DistanceVectorToTrajectory
 
-%% DEFINITION
+%% CLASS DEFINITION
 classdef MotorTrajectory
     % A motor trajectory consists of its timestamps & the motor points at
     % those times
     properties
-        Points;
+        CoordinateMatrix;
+        xCoordinates; % For plotting
+        yCoordinates; % For plotting
+        zCoordinates; % For plotting
+        Length;
+        Dimensions;
     end
     
     methods
         % Creating an object
-        function obj = MotorTrajectory(MotorPointCellArray, ...
-                PointsBetweenEachPoint)
-            if nargin == 1
-                PointsBetweenEachPoint = zeros(length(MotorPointCellArray) - 1, 1);
+        function obj = MotorTrajectory(CoordinateMatrix, ...
+                CoordinateOptions)
+            % If PointsBetweenEachPoint is not specified, set all the
+            % values to zero
+            arguments
+                CoordinateMatrix (:,:) {mustBeNumeric}
+                CoordinateOptions.xRowIndex {mustBeNumeric} = 1
+                CoordinateOptions.yRowIndex {mustBeNumeric} = 2
+                CoordinateOptions.zRowIndex {mustBeNumeric} = nan
+                CoordinateOptions.PointsBetweenEachPoint {mustBeNumeric} = 0
+                CoordinateOptions.xCoordinates (1,:) = nan
+                CoordinateOptions.yCoordinates (1,:) = nan
+                CoordinateOptions.zCoordinates (1,:) = nan
             end
-            TotalNumPoints = length(MotorPointCellArray) + sum(PointsBetweenEachPoint);
-            FinalPoints = cell(TotalNumPoints, 1);
-            StartIndex = 1;
-            if length(MotorPointCellArray) == 1
-                FinalPoints = MotorPointCellArray;
-            end
-            % Otherwise (this for loop won't execute if length(MotorPointCellArray) = 1)
-            for n = 1:length(MotorPointCellArray) - 1
-                CurrentVectorX = transpose(linspace(MotorPointCellArray{n,1}.x, MotorPointCellArray{n + 1,1}.x, PointsBetweenEachPoint(n,1) + 2));
-                CurrentVectorY = transpose(linspace(MotorPointCellArray{n,1}.y, MotorPointCellArray{n + 1,1}.y, PointsBetweenEachPoint(n,1) + 2));
-                for p = 1:length(CurrentVectorX)
-                    FinalPoints{StartIndex + p - 1,1} = MotorPoint([CurrentVectorX(p,1); CurrentVectorY(p,1)]);
+
+            obj.Length = size(CoordinateMatrix, 2); % This will potentially change
+            InBetweenPoints = CoordinateOptions.PointsBetweenEachPoint * ones(obj.Length - 1, 1);
+            TotalNumPoints = obj.Length + sum(InBetweenPoints);
+
+            % If there's only one motor point, it's a special case.
+            % Otherwise:
+            if obj.Length ~= 1
+                linInterpStart = nan(1, obj.Length);
+                StartIndex = 1;
+                linInterpStart(1) = StartIndex;
+                for n = 2:obj.Length
+                    StartIndex = StartIndex + InBetweenPoints(n-1) + 1;
+                    linInterpStart(n) = StartIndex;
                 end
-                StartIndex = StartIndex + PointsBetweenEachPoint(n, 1) + 1;
+                linInterpFinal = 1:TotalNumPoints;
+                CoordinateMatrix = transpose(interp1(linInterpStart, ...
+                    transpose(CoordinateMatrix), linInterpFinal));
             end
-            obj.Points = FinalPoints;
+
+            % Set the properties
+            obj.CoordinateMatrix = CoordinateMatrix;
+
+            [obj.Dimensions, obj.Length] = size(CoordinateMatrix);
+
+            % Set plotting coordinates according to index values
+            obj.xCoordinates = CoordinateMatrix(CoordinateOptions.xRowIndex, :);
+            obj.yCoordinates = CoordinateMatrix(CoordinateOptions.yRowIndex, :);
+            if isnan(CoordinateOptions.zRowIndex)
+                obj.zCoordinates = nan;
+            else
+                obj.zCoordinates = CoordinateMatrix(CoordinateOptions.zRowIndex, :);
+            end
+
+            % If there are provided plotting coordinates, override with
+            % them
+            if ~isnan(CoordinateOptions.xCoordinates)
+                obj.xCoordinates = CoordinateOptions.xCoordinates;
+            end
+            if ~isnan(CoordinateOptions.yCoordinates)
+                obj.yCoordinates = CoordinateOptions.yCoordinates;
+            end
+            if ~isnan(CoordinateOptions.zCoordinates)
+                obj.zCoordinates = CoordinateOptions.zCoordinates;
+            end
         end
         
         % Plotting info
         function [xValues, yValues, colorValues] = ...
                 PlottingInfo(obj, color1, color2)
             % Initialize
-            xValues = zeros(length(obj.Points), 1);
-            yValues = zeros(length(obj.Points), 1);
-            for n = 1:length(obj.Points)
-                xValues(n,1) = obj.Points{n,1}.x;
-                yValues(n,1) = obj.Points{n,1}.y;
-            end
-            colorValues1 = transpose(linspace(color1(1,1), ...
-                color2(1,1), length(obj.Points)));
-            colorValues2 = transpose(linspace(color1(1,2), ...
-                color2(1,2), length(obj.Points)));
-            colorValues3 = transpose(linspace(color1(1,3), ...
-                color2(1,3), length(obj.Points)));
-            colorValues = horzcat(colorValues1, colorValues2, ...
-                colorValues3);
+            xValues = obj.xCoordinates;
+            yValues = obj.yCoordinates;
+            colorValues = interp1([1 length(xValues)], [color1; color2], 1:length(xValues));
+        end
+        
+        % Plotting info 3D
+        function [xValues, yValues, zValues, colorValues] = ...
+                PlottingInfo3D(obj, color1, color2)
+            % Initialize
+            xValues = obj.xCoordinates;
+            yValues = obj.yCoordinates;
+            zValues = obj.zCoordinates;
+            colorValues = interp1([1 length(xValues)], [color1; color2], 1:length(xValues));
         end
         
         % Plotting
         function Plot(obj, axes, color1, color2, Size)
             [xValues, yValues, colorValues] = obj.PlottingInfo(...
-                color1, color2, Size, NumMarkersPerTime);
+                color1, color2);
             scatter(axes, xValues, yValues, Size, colorValues, ...
                 "filled", "Marker", "hexagram");
         end
@@ -75,16 +119,28 @@ classdef MotorTrajectory
 
         % Finding corresponding perceptual trajectory
         function perceptualTrajectory = FindPerceptualTrajectory(obj, ...
-                SpaceTransformationToUse)
-            PerceptualPointCellArray = cell(size(obj.Points));
-            for p = 1:length(PerceptualPointCellArray)
-                CurrentPerceptualPoint = ...
-                    obj.Points{p, 1}.FindPerceptualPoint(...
-                    SpaceTransformationToUse);
-                PerceptualPointCellArray{p, 1} = CurrentPerceptualPoint;
+                SpaceTransformationToUse, PerceptualCoordinateOptions)
+            arguments
+                obj
+                SpaceTransformationToUse
+                PerceptualCoordinateOptions.xRowIndex {mustBeNumeric} = 1
+                PerceptualCoordinateOptions.yRowIndex {mustBeNumeric} = 2
+                PerceptualCoordinateOptions.zRowIndex {mustBeNumeric} = nan
+            end
+            PerceptualDimension = ...
+                size(SpaceTransformationToUse.TransformationFunction( ...
+                obj.CoordinateMatrix(:, 1)), 1);
+            PerceptualPointMatrix = nan(PerceptualDimension, obj.Length);
+            for p = 1:length(PerceptualPointMatrix)
+                PerceptualPointMatrix(:, p) = ...
+                    SpaceTransformationToUse.TransformationFunction( ...
+                    obj.CoordinateMatrix(:, p));
             end
             perceptualTrajectory = PerceptualTrajectory(...
-                PerceptualPointCellArray);
+                PerceptualPointMatrix, ...
+                "xRowIndex", PerceptualCoordinateOptions.xRowIndex, ...
+                "yRowIndex", PerceptualCoordinateOptions.yRowIndex, ...
+                "zRowIndex", PerceptualCoordinateOptions.zRowIndex);
         end
 
 
@@ -103,36 +159,36 @@ classdef MotorTrajectory
         % [1;2], [2;3], [3;4], [4;5], [6;9], [8;13], [10;17], [9;16], [8;15], [7;14], [11;10], [15;6], [19;2]
         % [1;4], [3;5], [5;6], [3;4], [1;2], [2;2], [3;2], [4;5], [5;8], [7;10], [9;12], [7;9], [5;6]
         function DistanceVector = DistanceVectorToTrajectory(obj, OtherTrajectory)
-            % FIRST GETTING THE CURRENT COORDINATES INTO A MATRIX FORMAT
-            CoordinateLength = length(obj.Points{1,1}.Coordinates);
-                % EX| CoordinateLength = 2
-            StartingCoordinateListA = zeros(CoordinateLength, length(obj.Points));
-                % EX| StartingCoordinateListA = [0 0 0 0 0; 0 0 0 0 0]
-            StartingCoordinateListB = zeros(CoordinateLength, length(OtherTrajectory.Points));
-                % EX| StartingCoordinateListA = [0 0 0 0 0 0 0; 0 0 0 0 0 0 0]
-            for p = 1:length(obj.Points)
-                StartingCoordinateListA(:,p) = obj.Points{p,1}.Coordinates;
-            end
+            StartingCoordinateListA = obj.CoordinateMatrix;
                 % EX| StartingCoordinateListA = [1 4 10 7 19; 2 5 17 14 2]
-            for p = 1:length(OtherTrajectory.Points)
-                StartingCoordinateListB(:,p) = OtherTrajectory.Points{p,1}.Coordinates;
-            end
+            StartingCoordinateListB = OtherTrajectory.CoordinateMatrix;
                 % EX| StartingCoordinateListB = [1 5 1 3 5 9 5; 4 6 2 2 8 12 6]
+            assert(obj.Dimensions == OtherTrajectory.Dimensions, "The " + ...
+                "motor trajectories must have the same number " + ...
+                "of coordinates but one of them is " + obj.Length + ...
+                " dimensions and the other is " + ...
+                OtherTrajectory.Length + " dimensions")
+            CoordinateLength = obj.Dimensions;
+                % EX| CoordinateLength = 2
+            TrajectoryLengthA = size(StartingCoordinateListA, 2);
+                % EX| TrajectoryLengthA = 5
+            TrajectoryLengthB = size(StartingCoordinateListB, 2);
+                % EX| TrajectoryLengthB = 7
 
             % MAKING THE NECESSARY INPUTS TO USE TO FIND THE EXPANDED
             % COORDINATES
-            LengthOfExpandedPointLists = lcm(length(obj.Points) - 1, ...
-                length(OtherTrajectory.Points) - 1) + 1;
+            LengthOfExpandedPointLists = lcm(TrajectoryLengthA - 1, ...
+                TrajectoryLengthB - 1) + 1;
                 % EX| LengthOfExpandedPointLists = 13
-            StepA = (LengthOfExpandedPointLists - 1)/(length(obj.Points) - 1);
+            StepA = (LengthOfExpandedPointLists - 1)/(TrajectoryLengthA - 1);
                 % EX| StepA = (13 - 1)/(5 - 1) = 12/4 = 3
-            StepB = (LengthOfExpandedPointLists - 1)/(length(OtherTrajectory.Points) - 1);
+            StepB = (LengthOfExpandedPointLists - 1)/(TrajectoryLengthB - 1);
                 % EX| StepB = (13 - 1)/(7 - 1) = 12/6 = 2
-            StartingInputA = 0:StepA:(LengthOfExpandedPointLists - 1);
+            StartingInputA = 1:StepA:LengthOfExpandedPointLists;
                 % EX| StartingInputA = 0:3:12 = [0 3 6 9 12]
-            StartingInputB = 0:StepB:(LengthOfExpandedPointLists - 1);
+            StartingInputB = 1:StepB:LengthOfExpandedPointLists;
                 % EX| StartingInputB = 0:2:12 = [0 2 4 6 8 10 12]
-            EndingInput = 0:(LengthOfExpandedPointLists - 1);
+            EndingInput = 1:LengthOfExpandedPointLists;
                 % EX| EndingInput = 0:12 = [0 1 2 3 4 5 6 7 8 9 10 11 12]
 
             % INITIALIZING
@@ -142,13 +198,13 @@ classdef MotorTrajectory
             CoordinateListB = zeros(CoordinateLength, LengthOfExpandedPointLists);
                 % EX| CoordinateListB = [0 0 0 0 0 0 0 0 0 0 0 0; 
                 % EX| 0 0 0 0 0 0 0 0 0 0 0 0]
-
             % MAKING EXPANDED COORDINATES
             for c = 1:CoordinateLength
                 StartingCoordinateRowA = StartingCoordinateListA(c,:);
                     % EX| c = 1: StartingCoordinateRow = [1 4 10 7 19]
                     % EX| c = 2: StartingCoordinateRow = [2 5 17 14 2]
-                ExpandedCoordinateRowA = interp1(StartingInputA, StartingCoordinateRowA, EndingInput);
+                ExpandedCoordinateRowA = interp1(StartingInputA, ...
+                    StartingCoordinateRowA, EndingInput);
                     % EX| c = 1: ExpandedCoordinateRowA 
                     % EX| = [1 2 3 4 6 8 10 9 8 7 11 15 19]
                     % EX| c = 2: ExpandedCoordinateRowA
@@ -159,7 +215,8 @@ classdef MotorTrajectory
                 StartingCoordinateRowB = StartingCoordinateListB(c,:);
                     % EX| c = 1: StartingCoordinateRow = [1 5 1 3 5 9 5]
                     % EX| c = 2: StartingCoordinateRow = [4 6 2 2 8 12 6]
-                ExpandedCoordinateRowB = interp1(StartingInputB, StartingCoordinateRowB, EndingInput);
+                ExpandedCoordinateRowB = interp1(StartingInputB, ...
+                    StartingCoordinateRowB, EndingInput);
                     % EX| c = 1: ExpandedCoordinateRowB
                     % EX| = [1 3 5 3 1 2 3 4 5 7 9 7 5]
                     % EX| c = 2: ExpandedCoordinateRowB

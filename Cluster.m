@@ -5,20 +5,29 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% METHOD LIST
+%
+%  Cluster
+%
+%  ACTIVATION
 %  FindActivation
 %  FindSilhouetteActivation
-%  FindTrajectoryActivationSum
+%  FindExemplarActivation
 %  FindActivationWithWindow
+%
+%  ACTIVATION SETTINGS
 %  DistanceToActivationMap
 %  DistanceToActivationMapLinear
 %  CombineActivation
-%  AverageDistanceToTrajectory
-%  AverageDistanceToSilhouette
-%  AverageDistanceToPoint
+%
+%  CENTROIDS FOR CLUSTER FORCES
 %  Center
 %  Center_AverageJunctureAll
+%
+%  PLOTTING INFO
 %  MotorPlottingInfo
 %  PerceptualPlottingInfo
+%
+%  PLOTTING
 %  PlotMotor
 %  PlotPerceptual
 
@@ -26,34 +35,137 @@
 classdef Cluster
     % A cluster consists of a cell array of its junctures
     properties
-        Junctures;
         MotorCoordinateMatrix;
         PerceptualCoordinateMatrix;
+        Junctures;
+        xMotor; % For plotting
+        yMotor; % For plotting
+        zMotor; % For plotting
+        xPerceptual; % For plotting
+        yPerceptual; % For plotting
+        zPerceptual; % For plotting
     end
     
     methods
         % Create object
-        function obj = Cluster(JunctureCellArray)
-            obj.Junctures = JunctureCellArray;
-            MotorCoordinateMatrix = zeros(length( ...
-                JunctureCellArray{1,1}.MotorPoint.Coordinates), ...
-                length(JunctureCellArray));
-            PerceptualCoordinateMatrix = zeros(length( ...
-                JunctureCellArray{1,1}.PerceptualPoint.Coordinates), ...
-                length(JunctureCellArray));
-            for j = 1:length(JunctureCellArray)
-                MotorCoordinateMatrix(:,j) = JunctureCellArray{j,1}.MotorPoint.Coordinates;
-                PerceptualCoordinateMatrix(:,j) = JunctureCellArray{j,1}.PerceptualPoint.Coordinates;
+         function obj = Cluster(MotorCoordinateMatrix, ...
+                PerceptualCoordinateMatrix, CoordinateOptions)
+            arguments
+                MotorCoordinateMatrix (:,:) {mustBeNumeric}
+                PerceptualCoordinateMatrix (:,:) {mustBeNumeric}
+                CoordinateOptions.xMotorRowIndex {mustBeNumeric} = 1
+                CoordinateOptions.yMotorRowIndex {mustBeNumeric} = 2
+                CoordinateOptions.zMotorRowIndex {mustBeNumeric} = nan
+                CoordinateOptions.xPerceptualRowIndex {mustBeNumeric} = 1
+                CoordinateOptions.yPerceptualRowIndex {mustBeNumeric} = 2
+                CoordinateOptions.zPerceptualRowIndex {mustBeNumeric} = nan
+                CoordinateOptions.xMotor (1,:) = nan
+                CoordinateOptions.yMotor (1,:) = nan
+                CoordinateOptions.zMotor (1,:) = nan
+                CoordinateOptions.xPerceptual (1,:) = nan
+                CoordinateOptions.yPerceptual (1,:) = nan
+                CoordinateOptions.zPerceptual (1,:) = nan
             end
+            assert(size(MotorCoordinateMatrix, 2) == ...
+                size(PerceptualCoordinateMatrix, 2), "The " + ...
+                "MotorCoordinateMatrix and " + ...
+                "PerceptualCoordinateMatrix have to correspond to " + ...
+                "the same number of points as each other but " + ...
+                "MotorCoordinateMatrix defines " + ...
+                size(MotorCoordinateMatrix, 2) + " points and " + ...
+                "PerceptualCoordinateMatrix defines " + ...
+                size(PerceptualCoordinateMatrix, 2) + " points.")
             obj.MotorCoordinateMatrix = MotorCoordinateMatrix;
             obj.PerceptualCoordinateMatrix = PerceptualCoordinateMatrix;
+
+            %% Motor coordinate plotting info
+            % If xMotorRowIndex or yMotorRowIndex is nan, override it
+            if isnan(CoordinateOptions.xMotorRowIndex)
+                xMotorRowIndex = 1;
+            else
+                xMotorRowIndex = CoordinateOptions.xMotorRowIndex;
+            end
+            if isnan(CoordinateOptions.xMotorRowIndex)
+                yMotorRowIndex = 2;
+            else
+                yMotorRowIndex = CoordinateOptions.yMotorRowIndex;
+            end
+            % Set obj.xMotor and obj.yMotor based on the indices
+            obj.xMotor = MotorCoordinateMatrix(xMotorRowIndex, :);
+            obj.yMotor = MotorCoordinateMatrix(yMotorRowIndex, :);
+            if isnan(CoordinateOptions.zMotorRowIndex)
+                obj.zMotor = nan;
+            else
+                obj.zMotor = MotorCoordinateMatrix(CoordinateOptions.zMotorRowIndex, :);
+            end
+            % If there are provided plotting coordinates, override with
+            % them
+            if ~isnan(CoordinateOptions.xMotor)
+                obj.xMotor = CoordinateOptions.xMotor;
+            end
+            if ~isnan(CoordinateOptions.yMotor)
+                obj.yMotor = CoordinateOptions.yMotor;
+            end
+            if ~isnan(CoordinateOptions.zMotor)
+                obj.zMotor = CoordinateOptions.zMotor;
+            end
+
+            %% Perceptual coordinate plotting info
+            % If xPerceptualRowIndex or yPerceptualRowIndex is nan, override it
+            if isnan(CoordinateOptions.xPerceptualRowIndex)
+                xPerceptualRowIndex = 1;
+            else
+                xPerceptualRowIndex = CoordinateOptions.xPerceptualRowIndex;
+            end
+            if isnan(CoordinateOptions.xPerceptualRowIndex)
+                yPerceptualRowIndex = 2;
+            else
+                yPerceptualRowIndex = CoordinateOptions.yPerceptualRowIndex;
+            end
+            % Set obj.xPerceptual and obj.yPerceptual based on the indices
+            obj.xPerceptual = PerceptualCoordinateMatrix( ...
+                xPerceptualRowIndex, :);
+            obj.yPerceptual = PerceptualCoordinateMatrix( ...
+                yPerceptualRowIndex, :);
+            if isnan(CoordinateOptions.zPerceptualRowIndex)
+                obj.zPerceptual = nan;
+            else
+                obj.zPerceptual = PerceptualCoordinateMatrix( ...
+                    CoordinateOptions.zPerceptualRowIndex, :);
+            end
+            % If there are provided plotting coordinates, override with
+            % them
+            if ~isnan(CoordinateOptions.xPerceptual)
+                obj.xPerceptual = CoordinateOptions.xPerceptual;
+            end
+            if ~isnan(CoordinateOptions.yPerceptual)
+                obj.yPerceptual = CoordinateOptions.yPerceptual;
+            end
+            if ~isnan(CoordinateOptions.zPerceptual)
+                obj.zPerceptual = CoordinateOptions.zPerceptual;
+            end
+            %% Juncture list
+            JunctureList = Juncture.empty(0, size( ...
+                MotorCoordinateMatrix, 2));
+            for j = 1:size(MotorCoordinateMatrix, 2)
+                motorPoint = MotorPoint(MotorCoordinateMatrix(:,j), ...
+                    "xCoordinates", obj.xMotor, ...
+                    "yCoordinates", obj.yMotor, ...
+                    "zCoordinates", obj.zMotor);
+                perceptualPoint = PerceptualPoint( ...
+                    PerceptualCoordinateMatrix(:,j), "xCoordinates", ...
+                    obj.xPerceptual, "yCoordinates", obj.yPerceptual, ...
+                    "zCoordinates", obj.zPerceptual);
+                JunctureList(j) = Juncture(motorPoint, perceptualPoint);
+            end
+            obj.Junctures = JunctureList;
         end
         
         %% ACTIVATION
         %  FUNCTIONS:
         %  FindActivation
         %  FindSilhouetteActivation
-        %  FindTrajectoryActivationSum
+        %  FindExemplarActivation
         %  FindActivationWithWindow
 
         % COMBINED ACTIVATION
@@ -61,72 +173,42 @@ classdef Cluster
         % at a certain time.  Have to decide whether we use
         % FindTrajectoryActivationSum or some other function
         function Activation = FindActivation(obj, Silhouette, Time, ...
-                Trajectory, HighestActivation, DropoffSlope)
+                Exemplar, HighestActivationM, DropoffSlopeM, ...
+                HighestActivationP, DropoffSlopeP)
             % The function used here to find the activation from the
-            % silhoeutte could be changed to something different
-            SilhouetteActivation = obj.FindSilhouetteActivation(...
-                Silhouette, Time, HighestActivation, DropoffSlope);
+            % silhouette could be changed to something different
+            % FIX!!!!
+            SilhouetteActivation = obj.FindSilhouetteActivation( ...
+                Silhouette, Time, HighestActivationM, DropoffSlopeM);
             % The function used here to find the activation from the
             % trajectory could be changed to something different
-            TrajectoryActivation = obj.FindTrajectoryActivationAverage(...
-                Trajectory, HighestActivation, DropoffSlope);
+            ExemplarActivation = obj.FindExemplarActivation(...
+                Exemplar, HighestActivationP, DropoffSlopeP);
             % The function used here to combined the activations could be
             % changed to something different
-            Activation = obj.CombineActivation(SilhouetteActivation, TrajectoryActivation);
+            Activation = obj.CombineActivation(SilhouetteActivation, ...
+                ExemplarActivation);
         end
         
         % FROM SILHOUETTE AT SPECIFIC TIME (I.E. FROM MOTOR REGION)
         % Finding activation of the cluster that comes from just a 
         % silhouette at a certain time, based on the distance between the
         % cluster and the silhouette at that time.
+        % MAKE THIS FASTER IN THE FUTURE WITH USING THE MOTOR COORDINATE
+        % MATRIX
         function Activation = FindSilhouetteActivation(obj, Silhouette, ...
                 Time, HighestActivation, DropoffSlope)
-            Activation = obj.DistanceToActivationMapLinear(...
-                obj.AverageDistanceToSilhouette(Silhouette, Time), ...
-                HighestActivation, DropoffSlope);
+            Activation = Silhouette.Regions( ...
+                Time).ActivationOfMotorMatrix( ...
+                obj.MotorCoordinateMatrix, HighestActivation, ...
+                DropoffSlope);
         end
-        
-        % FROM TRAJECTORY -- SUMMED & CAPPED AT 1
-        % Finding the sum of activations from the cluster to each point on
-        % the perceptual trajectory, and putting a cap on activation at 1
-        function Activation = FindTrajectoryActivationSum(obj, ...
-                Trajectory, HighestActivation, DropoffSlope)
-            SumOfActivations = 0;
-            
-            % Find activation for each point based on each point's
-            % individual distance from the cluster
-            for i = 1:length(Trajectory.Points)
-                point = Trajectory.Points{i,1};
-                dist = obj.AverageDistanceToPoint(point);
-                AdditionalActivation = obj.DistanceToActivationMapLinear(dist, ...
-                    HighestActivation, DropoffSlope);
-                SumOfActivations = SumOfActivations + AdditionalActivation;
-            end
-            
-            % Capping activation at 1
-            Activation = min(SumOfActivations,1);
-        end
-        
-        
-        % FROM TRAJECTORY -- AVERAGE
-        % Finding the sum of activations from the cluster to each point on
-        % the perceptual trajectory, and dividing by the number of points
-        function Activation = FindTrajectoryActivationAverage(obj, ...
-                Trajectory, HighestActivation, DropoffSlope)
-            SumOfActivations = 0;
-            
-            % Find activation for each point based on each point's
-            % individual distance from the cluster
-            for i = 1:length(Trajectory.Points)
-                point = Trajectory.Points{i,1};
-                dist = obj.AverageDistanceToPoint(point);
-                AdditionalActivation = obj.DistanceToActivationMapLinear(dist, ...
-                    HighestActivation, DropoffSlope);
-                SumOfActivations = SumOfActivations + AdditionalActivation;
-            end
-            
-            % Finding average
-            Activation = SumOfActivations/length(Trajectory.Points);
+
+        function Activation = FindExemplarActivation(obj, Exemplar, ...
+                HighestActivation, DropoffSlope)
+            Activation = Exemplar.ActivationOfPerceptualMatrix( ...
+                obj.PerceptualCoordinateMatrix, HighestActivation, ...
+                DropoffSlope);
         end
         
         % Finding activation from a silhouette and a perceptual trajectory,
@@ -176,12 +258,14 @@ classdef Cluster
         % HighestActivation = 1, DropoffSlope = 0.125, and we'll show
         % Time = 1, 2, 3, 4, 5, 6
         function Activation = FindActivationWithWindow(obj, Silhouette, ...
-                Trajectory, Time, LookBackWindow, LookAheadWindow, ...
-                HighestActivation, DropoffSlope)
+                Exemplar, Time, LookBackWindow, LookAheadWindow, ...
+                HighestActivationM, DropoffSlopeM, ...
+                HighestActivationP, DropoffSlopeP)
             % Need to fix this but for now, the window size will just be
             % determined in terms of number of points forward in the
             % silhouette
-            Activation = 0;
+            ActivationSum = 0;
+            TemporalSum = 0;
             for SilhouetteRegion = 1:length(Silhouette.Regions)
                 % EX| for SilhouetteRegion = 1:6
                 DistanceFromCurrentTimeToRegion = SilhouetteRegion - Time;
@@ -189,22 +273,26 @@ classdef Cluster
                 % The amount of influence, based on its temoral distance, 
                 % that this part of the silhouette has on the cluster
                 TemporalActivationScalar = ...
-                    Silhouette.DropoffScalar(DistanceFromCurrentTimeToRegion, ...
+                    Silhouette.DropoffScalar( ...
+                    DistanceFromCurrentTimeToRegion, ...
                     LookAheadWindow, LookBackWindow);
                 % The amount of influence, based on its spatial distance
                 % from the cluster, that this part of the silhouette has on
                 % the cluster -- the more raw effect of the silhouette on
                 % activating the cluster
                 RawActivationScalar = obj.FindActivation(...
-                    Silhouette, SilhouetteRegion, Trajectory, ...
-                    HighestActivation, DropoffSlope);
+                    Silhouette, SilhouetteRegion, Exemplar, ...
+                    HighestActivationM, DropoffSlopeM, ...
+                    HighestActivationP, DropoffSlopeP);
                 % Overall activation that will get added to the cluster
                 % from this region of the silhouette
                 AdditionalActivation = ...
                     TemporalActivationScalar * RawActivationScalar;
                 % Add this to the total activation
-                Activation = Activation + AdditionalActivation;
+                ActivationSum = ActivationSum + AdditionalActivation;
+                TemporalSum = TemporalSum + TemporalActivationScalar;
             end
+            Activation = ActivationSum / TemporalSum;
         end
         
         %% ACTIVATION SETTINGS
@@ -226,7 +314,8 @@ classdef Cluster
         % DISTANCE -> ACTIVATION LINEAR
         function Activation = DistanceToActivationMapLinear(~, ...
                 Distance, HighestActivation, DropoffSlope)
-            Activation = max(0, HighestActivation - (DropoffSlope * Distance));
+            Activation = max(0, HighestActivation - ( ...
+                DropoffSlope * Distance));
         end
         
         % SILHOUETTE ACTIVATION & TRAJECTORY ACTIVATION -> ACTIVATION
@@ -241,123 +330,16 @@ classdef Cluster
             pe = 3;
             % Root denominator
             RootDenominator = me + pe;
-            Activation = (SilhouetteActivation^me * PerceptualActivation^pe)^(1/RootDenominator);
-        end
-        
-        %% DISTANCE FUNCTIONS
-        %  FUNCTIONS:
-        %  AverageDistanceToTrajectory
-        %  AverageDistanceToSilhouette
-        %  AverageDistanceToPoint
-        
-        % TRAJECTORY (MOTOR OR PERCEPTUAL)
-        % Finding the average distance between the cluster and a trajectory 
-        % (will be used for perceptual trajectories, but the function can 
-        % be general) -- the average of the distances between every pair of
-        % (juncture from cluster) & (point on trajectory)
-        function dist = AverageDistanceToTrajectory(obj, Trajectory)
-            % For each point in the trajectory, find the distance between
-            % the cluster and that point.  The distance from the cluster to
-            % each point is from the function AverageDistanceToPoint, which
-            % finds the average of the distances from each juncture in the
-            % cluster to that point.
-            SumOfDistances = 0;
-            for i = 1:length(Trajectory.Points)
-                SumOfDistances = SumOfDistances + ...
-                    obj.AverageDistanceToPoint(Trajectory.Points{i,1});
-            end
-            % Take the average
-            dist = SumOfDistances/length(Trajectory.Points);
-        end
-        
-        % SILHOUETTE AT SPECIFIED TIME (I.E. REGION)
-        % Finding the average distance betwween the cluster and a 
-        % silhouette at a certain time (which corresponds to a certain 
-        % region in that silhouette)
-        function dist = AverageDistanceToSilhouette(obj, Silhouette, Time)
-            % For right now, takes the average of the distances between the
-            % region corresponding to Time and each of the junctures.  The 
-            % distance between the region and a juncture is comes from a
-            % method for the MotorRegionTemp object.
-            %
-            RegionCenter = Silhouette.Regions{Time,1}.Center.Coordinates;
-            DistFromCenter = sqrt(sum((obj.MotorCoordinateMatrix - RegionCenter).^2,1));
-            TrueDist = max(0, DistFromCenter - Silhouette.Regions{Time,1}.Radius);
-            dist = mean(TrueDist);
-%             SumOfDistances = 0;
-%             for i = 1:length(obj.Junctures)
-%                 SumOfDistances = SumOfDistances + Silhouette.Regions{...
-%                     Time,1}.DistanceToJuncture(obj.Junctures{i,1}); 
-%             end
-%             dist = SumOfDistances/length(obj.Junctures);
-        end
-
-        
-        % POINT (MOTOR OR PERCEPTUAL)
-        % Finding the average distance between the cluster and a point 
-        % (average of the distance between the point and each juncture in 
-        % the cluster)
-        function dist = AverageDistancesToTrajectoryVector(obj, Trajectory)
-            % If the point is a motor point
-            dist = zeros(1,length(Trajectory.Points));
-            for p = 1:length(Trajectory.Points)
-                dist(1,p) = obj.AverageDistanceToPoint(Trajectory.Points{p,1});
-            end
-%             if class(Trajectory) == "MotorTrajectory"
-%                 SumOfDistances = 0;
-%                 for i = 1:length(obj.Junctures)
-%                     SumOfDistances = SumOfDistances + ...
-%                         obj.Junctures{i,1}.MotorPoint.Distance(Point);
-%                 end
-%                 dist = SumOfDistances/length(obj.Junctures);
-%             % If the point is a perceptual point
-%             elseif class(Trajectory) == "PerceptualTrajectory"
-%                 SumOfDistances = 0;
-%                 for i = 1:length(obj.Junctures)
-%                     SumOfDistances = SumOfDistances + ...
-%                         obj.Junctures{i,1}.PerceptualPoint.Distance(Point);
-%                 end
-%                 dist = SumOfDistances/length(obj.Junctures);
-%             end
-        end
-        
-        % POINT (MOTOR OR PERCEPTUAL)
-        % Finding the average distance between the cluster and a point 
-        % (average of the distance between the point and each juncture in 
-        % the cluster)
-        function dist = AverageDistanceToPoint(obj, Point)
-            % If the point is a motor point
-            if class(Point) == "MotorPoint"
-                Distances = sqrt(sum((obj.MotorCoordinateMatrix - Point.Coordinates).^2, 1));
-                dist = mean(Distances);
-            elseif class(Point) == "PerceptualPoint"
-                Distances = sqrt(sum((obj.PerceptualCoordinateMatrix - Point.Coordinates).^2, 1));
-                dist = mean(Distances);
-            end
-%             % If the point is a motor point
-%             if class(Point) == "MotorPoint"
-%                 SumOfDistances = 0;
-%                 for i = 1:length(obj.Junctures)
-%                     SumOfDistances = SumOfDistances + ...
-%                         obj.Junctures{i,1}.MotorPoint.Distance(Point);
-%                 end
-%                 dist = SumOfDistances/length(obj.Junctures);
-%             % If the point is a perceptual point
-%             elseif class(Point) == "PerceptualPoint"
-%                 SumOfDistances = 0;
-%                 for i = 1:length(obj.Junctures)
-%                     SumOfDistances = SumOfDistances + ...
-%                         obj.Junctures{i,1}.PerceptualPoint.Distance(Point);
-%                 end
-%                 dist = SumOfDistances/length(obj.Junctures);
-%             end
-        end
-        
+            Activation = (SilhouetteActivation^me * ...
+                PerceptualActivation^pe)^(1/RootDenominator);
+%             Activation = SilhouetteActivation + PerceptualActivation;
+        end        
         
         %% CENTROIDS FOR CLUSTER FORCES
         %  FUNCTIONS:
         %  Center
         %  Center_AverageJunctureAll
+
         % This gives the different functions that can be used to determine
         % what the "center of gravity" for a cluster is, that is, where it 
         % pulls towards when it's activated or activated in a certain way.
@@ -382,29 +364,9 @@ classdef Cluster
         % j3        [4; 2]              [12; 20]
         % j4        [6; 2]              [14; 20]
         function Centroid = Center_AverageJunctureAll(obj)
-            CoordinateSumM = obj.Junctures{1,1}.MotorPoint.Coordinates;
-                % EX| CoordinateSumM = [4; 0]
-            CoordinateSumP = obj.Junctures{1,1}.PerceptualPoint.Coordinates;
-                % EX| CoordinateSumP = [8; 20]
-            for i = 2:length(obj.Junctures)
-                CoordinateSumM = CoordinateSumM + ...
-                    obj.Junctures{i,1}.MotorPoint.Coordinates;
-                    % EX| i = 2: CoordinateSumM = [4;0] + [6;0] = [10;0]
-                    % EX| i = 3: CoordinateSumM = [10;0] + [4;2] = [14;2]
-                    % EX| i = 4: CoordinateSumM = [14;2] + [6;2] = [20;4]
-                CoordinateSumP = CoordinateSumP + ...
-                    obj.Junctures{i,1}.PerceptualPoint.Coordinates;
-                    % EX| i = 2: CoordinateSumP = [8;20] + [10;20] = [18;40]
-                    % EX| i = 3: CoordinateSumP = [18;40] + [12;20] = [30;60]
-                    % EX| i = 4: CoordinateSumP = [30;60] + [14;20] = [44;80]
-            end
-            averageM = CoordinateSumM/length(obj.Junctures);
-                % EX| averageM = [20; 4] / 4 = [5; 1]
-            averageP = CoordinateSumP/length(obj.Junctures);
-                % EX| averageP = [30; 60] / 4 = [7.5; 15]
-            MPoint = MotorPoint(averageM);
+            MPoint = MotorPoint(mean(obj.MotorCoordinateMatrix, 2));
                 % EX| MPoint = MotorPoint([5; 1])
-            PPoint = PerceptualPoint(averageP);
+            PPoint = PerceptualPoint(mean(obj.PerceptualCoordinateMatrix, 2));
                 % EX| PPoint = PerceptualPoint([7.5; 15])
             Centroid = Juncture(MPoint, PPoint);
         end
@@ -419,16 +381,11 @@ classdef Cluster
         % ColorValues ready for the scatter function.
         function [xValues, yValues, ColorValues] = ...
                 MotorPlottingInfo(obj, color)
-            % Initialize coordinate lists
-            xValues = zeros(size(obj.Junctures));
-            yValues = zeros(size(obj.Junctures));
-            ColorValues = zeros(length(obj.Junctures),3);
-            
-            % For each juncture, add the x value, y value & color from the
-            % MotorPlottingInfo juncture method to the list
-            for i = 1:length(obj.Junctures)
-                [xValues(i,1), yValues(i,1), ColorValues(i,:)] = ...
-                    obj.Junctures{i,1}.MotorPlottingInfo(color);
+            xValues = obj.xMotor;
+            yValues = obj.yMotor;
+            ColorValues = zeros(length(xValues),3);
+            for i = 1:length(xValues)
+                ColorValues(i,:) = color;
             end
         end
         
@@ -437,15 +394,11 @@ classdef Cluster
         function [xValues, yValues, ColorValues] = ...
                 PerceptualPlottingInfo(obj, color)
             % Initialize coordinate lists
-            xValues = zeros(size(obj.Junctures));
-            yValues = zeros(size(obj.Junctures));
-            ColorValues = zeros(length(obj.Junctures),3);
-            
-            % For each juncture, add the x value, y value & color from the
-            % PerceptualPlottingInfo juncture method to the list
-            for i = 1:length(obj.Junctures)
-                [xValues(i,1), yValues(i,1), ColorValues(i,:)] = ...
-                    obj.Junctures{i,1}.PerceptualPlottingInfo(color);
+            xValues = obj.xPerceptual;
+            yValues = obj.yPerceptual;
+            ColorValues = zeros(length(xValues),3);
+            for i = 1:length(xValues)
+                ColorValues(i,:) = color;
             end
         end
         

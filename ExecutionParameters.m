@@ -1,23 +1,28 @@
-%% METHODS LIST
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Core Model, 2022
+% Written by Maya Davis
+% Concept by Maya Davis and Melissa A. Redford
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% METHOD LIST
 %  ExecutionParameters
 
+%% CLASS DEFINITION
 classdef ExecutionParameters
     
     %% PROPERTIES
     properties
         LookBackAmount;
         LookAheadAmount;
-        Spread;
     end
     
     %% METHODS
     methods
         %% CREATE OBJECT
         function obj = ExecutionParameters(LookBackAmount, ...
-                LookAheadAmount, Spread)
+                LookAheadAmount)
             obj.LookBackAmount = LookBackAmount;
             obj.LookAheadAmount = LookAheadAmount;
-            obj.Spread = Spread;
         end
     end
 end

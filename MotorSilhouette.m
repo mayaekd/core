@@ -4,17 +4,24 @@
 % Concept by Maya Davis and Melissa A. Redford
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% METHODS LIST
+%% METHOD LIST
+%
 %  MotorSilhouette
+%
+%  DROPOFF FUNCTIONS FOR LOOKBACK & LOOKAHEAD WINDOWS
 %  DropoffScalar
-%  DropoffScalarLinearSymmetricFalloff
 %  DropoffScalarConcave
-%  DropoffScalarLinearFalloff
-%  DropoffScalarNormalFalloff
+%
+%  EXPAND MOTOR SILHOUETTE
+%  ExpandSilhouette
+%
+%  PLOTTING INFO AND PLOTTING
 %  TemporalActivationInfo
+%  PlottingInfo3D
 %  PlottingInfo
 %  Plot
 
+%% CLASS DEFINITION
 classdef MotorSilhouette
     % A motor silhouette consists of its timestamps & region at each time
     
@@ -26,11 +33,13 @@ classdef MotorSilhouette
     %% METHODS
     methods
         % Creating an object
-        function obj = MotorSilhouette(MotorRegionCellArray)
-            obj.Regions = MotorRegionCellArray;
+        function obj = MotorSilhouette(MotorRegions)
+            obj.Regions = MotorRegions;
         end
         
         %% DROPOFF FUNCTIONS FOR LOOKBACK & LOOKAHEAD WINDOWS
+        %  DropoffScalar
+        %  DropoffScalarConcave
         % Takes a time distance as an input, and gives as an output a
         % scalar that represents the weight that should be given to the
         % part of the motor silhouette that is that time distance away from
@@ -49,6 +58,10 @@ classdef MotorSilhouette
         % off linearly.
         function ScalarMultiplier = DropoffScalarConcave(~, ...
                 TimeDistance, LookAheadWindow, LookBackWindow, Power)
+            % Adding one to these first is the easiest way to run this
+            % algorithm
+            LookAheadWindow = LookAheadWindow + 1;
+            LookBackWindow = LookBackWindow + 1;
             % TimeDistance is positive if we're looking forward in time and
             % negative if we're looking backward in time
             if TimeDistance > -LookBackWindow
@@ -73,37 +86,30 @@ classdef MotorSilhouette
             end
         end
 
-        % Drops off linearly, with different slopes for the future and for
-        % the past.
-        function ScalarMultiplier = DropoffScalarLinearFalloff(~, ...
-                TimeDistance, LookAheadWindow, LookBackWindow)
-            % TimeDistance is positive if we're looking forward in time and
-            % negative if we're looking backward in time
-            if TimeDistance > -LookBackWindow
-                if TimeDistance > 0
-                    if TimeDistance < LookAheadWindow
-                        % TimeDistance is between 0 and LookAheadWindow
-                        ScalarMultiplier = ...
-                            1 - (TimeDistance/LookAheadWindow);
-                    else
-                        % TimeDistance is greater than or equal to
-                        % LookAheadWindow
-                        ScalarMultiplier = 0;
-                    end
-                else
-                    % TimeDistance is between -LookBackWindow and 0
-                    ScalarMultiplier = ...
-                        1 - (-TimeDistance/LookBackWindow);
-                end
-            else
-                % TimeDistance is less than or equal to -LookBackWindow
-                ScalarMultiplier = 0;
+        %% EXPAND MOTOR SILHOUETTE
+        %  ExpandSilhouette
+        function ExpandedSilhouette = ExpandSilhouette(obj, motorTrajectory)
+            % For now, the motorTrajectory has to have the same length as
+            % the silhouette
+            assert(size(motorTrajectory.CoordinateMatrix, 2) == length( ...
+                obj.Regions), "The motor silhouette is " + ...
+                length(obj.Regions) + " time steps long but the " + ...
+                "trajectory is " + ...
+                size(motorTrajectory.CoordinateMatrix, 2) + ...
+                " time steps long");
+            NewRegions = WeightedMotorSimplicialComplex.empty(0, length(obj.Regions));
+            for t = 1:length(obj.Regions)
+                NewRegion = obj.Regions(t).Expand(motorTrajectory.CoordinateMatrix(:, t));
+                NewRegions(t) = NewRegion;
             end
+            ExpandedSilhouette = MotorSilhouette(NewRegions);
         end
-        
 
         %% PLOTTING INFO AND PLOTTING
-        
+        %  TemporalActivationInfo
+        %  PlottingInfo3D
+        %  PlottingInfo
+        %  Plot
         % Time-varying activation info: the output, ActivationValuesCell is
         % a cell array such that ActivationValuesCell{t,1} will be 
         % something like [0; 0.5; 1; 0.5; 0; 0], which would mean that at 
@@ -111,17 +117,17 @@ classdef MotorSilhouette
         % half active at the 2nd and 4th regions, and not active at the 
         % 1st, 5th, and 6th regions.  This activation would be determined 
         % by the dropoff function.
-        function ActivationValuesCell = ...
+        function ActivationValuesMatrix = ...
                 TemporalActivationInfo(obj, LookBackAmt, LookAheadAmt)
             % Inititalize ActivationValuesCell to the right size -- the 
             % number of time steps.  
-            ActivationValuesCell = cell(length(obj.Regions), 1);
-            for t = 1:length(ActivationValuesCell)
+            ActivationValuesMatrix = nan(length(obj.Regions), length(obj.Regions));
+            for t = 1:size(ActivationValuesMatrix, 1)
                 % Find the span of the window for which the activation is 
                 % nonzero -- will be a little tricky at the beginning and 
                 % end -- a is the beginning of the window and b is the end
                 a = max(1, t - LookBackAmt);
-                b = min(length(ActivationValuesCell), t + LookAheadAmt);
+                b = min(length(ActivationValuesMatrix), t + LookAheadAmt);
                 
                 % Initialize the set of activation values that will go in
                 % these units in the cells; t is the index of the main
@@ -139,7 +145,7 @@ classdef MotorSilhouette
                         LookAheadAmt, LookBackAmt);
                     CurrentActivationValues(RegionIndex, 1) = Activation; 
                 end
-                ActivationValuesCell{t,1} = CurrentActivationValues;
+                ActivationValuesMatrix(t,:) = CurrentActivationValues;
             end
         end
         
@@ -147,33 +153,120 @@ classdef MotorSilhouette
         % function -- this will be the plotting info for plotting it as a
         % sequence of polygons, with the number of vertices specified as an
         % input.
-        function [VertexData, FaceData] = PlottingInfo(obj, NumberOfVertices)
-            % Initialize VertexData and FaceData to be the right sizes
-            VertexData = zeros(NumberOfVertices * length(obj.Regions), 2);
-            FaceData = zeros(length(obj.Regions), NumberOfVertices);
+        % EXAMPLE: If we want to plot a triangle with vertices (1,1) (2,2)
+        % and (2,1) and a square with vertices (3,3) (4,3) (4,4) and (3,4),
+        % then we want:
+        % VertexData = [1 1; 2 2; 2 1; 3 3; 4 3; 4 4; 3 4]
+        % FaceData = [1 2 3 NaN; 4 5 6 7]
+        function [VertexData, FaceData, AlphaData] = PlottingInfo3D(obj, AlphaMin, AlphaMax)
+            TotalNumVertices = 0;
+            TotalNumFaceRows = 0;
+            MaxNumVertices = 0;
             for t = 1:length(obj.Regions)
-                % Getting the data for the current region -- that is, the 
-                % region corresponding to time t
-                a = (t-1) * NumberOfVertices + 1;
-                b = t * NumberOfVertices;
-                CurrentRegion = obj.Regions{t,1};
-                % The vertices for the tth region
-                RegionVertexData = ...
-                    CurrentRegion.PolygonPlottingInfo(NumberOfVertices);
-                % The indices of the vertices for the tth region
-                RegionFaceData = a:b;
-                
-                % Putting the current-region stuff into the bigger matrices
-                VertexData(a:b,:) = RegionVertexData;
-                FaceData(t,:) = RegionFaceData;
+                CurrentNumVertices = size(obj.Regions(t).MotorVertexList, 1);
+                TotalNumVertices = TotalNumVertices + CurrentNumVertices;
+                MaxNumVertices = max(MaxNumVertices, CurrentNumVertices);
+                CurrentNumFaceRows = size(obj.Regions(t).SimplexMatrix, 1);
+                TotalNumFaceRows = TotalNumFaceRows + CurrentNumFaceRows;
+            end
+            NumCoordinates = size(obj.Regions(1).MotorVertexList, 2);
+
+            % Initializing outputs to be the right sizes
+            VertexData = zeros(TotalNumVertices, NumCoordinates);
+            FaceData = nan(TotalNumFaceRows, MaxNumVertices);
+            AlphaData = zeros(TotalNumFaceRows, 1);
+
+            % Starting filling in outputs
+            StartingVertexIndex = 1;
+            StartingFaceIndex = 1;
+            NumVerticesSoFar = 0;
+            for t = 1:length(obj.Regions)
+                [CurrentFaceData, CurrentVertexData, CurrentAlphaData] = ...
+                    obj.Regions(t).PlottingInfo("AlphaMin", AlphaMin, "AlphaMax", AlphaMax);
+
+                % Vertex stuff
+                CurrentNumVertices = size(CurrentVertexData, 1);
+                EndingVertexIndex = StartingVertexIndex + CurrentNumVertices - 1;
+                VertexData(StartingVertexIndex:EndingVertexIndex,:) = CurrentVertexData;
+
+                % Face stuff
+                ModifiedFaceData = CurrentFaceData + NumVerticesSoFar;
+                CurrentNumFaceRows = size(ModifiedFaceData, 1);
+                EndingFaceIndex = StartingFaceIndex + CurrentNumFaceRows - 1;
+                FaceData(StartingFaceIndex:EndingFaceIndex, 1:size(ModifiedFaceData, 2)) = ModifiedFaceData;
+
+                % Alpha stuff (based on face indices)
+                AlphaData(StartingFaceIndex:EndingFaceIndex) = CurrentAlphaData;
+
+                % Incrementing indices
+                NumVerticesSoFar = NumVerticesSoFar + CurrentNumVertices;
+                StartingVertexIndex = EndingVertexIndex + 1;
+                StartingFaceIndex = EndingFaceIndex + 1;
+            end
+        end
+
+        % Vertex and face data for plotting the silhouette using the patch
+        % function -- this will be the plotting info for plotting it as a
+        % sequence of polygons, with the number of vertices specified as an
+        % input.
+        % EXAMPLE: If we want to plot a triangle with vertices (1,1) (2,2)
+        % and (2,1) and a square with vertices (3,3) (4,3) (4,4) and (3,4),
+        % then we want:
+        % VertexData = [1 1; 2 2; 2 1; 3 3; 4 3; 4 4; 3 4]
+        % FaceData = [1 2 3 NaN; 4 5 6 7]
+        function [VertexData, FaceData, AlphaData] = PlottingInfo(obj, AlphaMin, AlphaMax)
+            % Finding necessary sizes of things
+            TotalNumVertices = 0;
+            TotalNumFaceRows = 0;
+            MaxNumVertices = 0;
+            for t = 1:length(obj.Regions)
+                CurrentNumVertices = size(obj.Regions(t).MotorVertexList, 1);
+                TotalNumVertices = TotalNumVertices + CurrentNumVertices;
+                MaxNumVertices = max(MaxNumVertices, CurrentNumVertices);
+                CurrentNumFaceRows = size(obj.Regions(t).SimplexMatrix, 1);
+                TotalNumFaceRows = TotalNumFaceRows + CurrentNumFaceRows;
+            end
+            NumCoordinates = size(obj.Regions(1).MotorVertexList, 2);
+
+            % Initializing outputs to be the right sizes
+            VertexData = zeros(TotalNumVertices, NumCoordinates);
+            FaceData = nan(TotalNumFaceRows, MaxNumVertices);
+            AlphaData = zeros(TotalNumFaceRows, 1);
+
+            % Starting filling in outputs
+            StartingVertexIndex = 1;
+            StartingFaceIndex = 1;
+            NumVerticesSoFar = 0;
+            for t = 1:length(obj.Regions)
+                [CurrentFaceData, CurrentVertexData, CurrentAlphaData] = ...
+                    obj.Regions(t).PlottingInfo("AlphaMin", AlphaMin, "AlphaMax", AlphaMax);
+
+                % Vertex stuff
+                CurrentNumVertices = size(CurrentVertexData, 1);
+                EndingVertexIndex = StartingVertexIndex + CurrentNumVertices - 1;
+                VertexData(StartingVertexIndex:EndingVertexIndex,:) = CurrentVertexData;
+
+                % Face stuff
+                ModifiedFaceData = CurrentFaceData + NumVerticesSoFar;
+                CurrentNumFaceRows = size(ModifiedFaceData, 1);
+                EndingFaceIndex = StartingFaceIndex + CurrentNumFaceRows - 1;
+                FaceData(StartingFaceIndex:EndingFaceIndex, 1:size(ModifiedFaceData, 2)) = ModifiedFaceData;
+
+                % Alpha stuff (based on face indices)
+                AlphaData(StartingFaceIndex:EndingFaceIndex) = CurrentAlphaData;
+
+                % Incrementing indices
+                NumVerticesSoFar = NumVerticesSoFar + CurrentNumVertices;
+                StartingVertexIndex = EndingVertexIndex + 1;
+                StartingFaceIndex = EndingFaceIndex + 1;
             end
         end
         
         % Plotting the whole silhouette with full opacity, on axes (input), 
         % as a series of polygons with NumberOfVertices vertices (input), 
         % the color given by ColorRBG (input)
-        function WholeSilhouettePlot = Plot(obj, axes, ColorRBG, ...
-                NumberOfVertices)
+        % FIX
+        function WholeSilhouettePlot = Plot(obj, axes, ColorRBG)
             % Plots the silhouette 
 
             % Expand ColorRBG into a larger array that is the appropriate
@@ -183,19 +276,25 @@ classdef MotorSilhouette
                 ColorArray(t,:) = ColorRBG;
             end
 
+            % Vertex & Face Data
+            [VertexData, FaceData, AlphaData] = obj.PlottingInfo();
+
             % AlphaArray are the opacity values, which are all 1 (fully
             % opaque) in this case
             AlphaArray = ones(length(obj.Regions),1);
-
-            % Vertex & Face Data
-            [VertexData, FaceData] = obj.PlottingInfo(NumberOfVertices);
             
             % Plotting
-            WholeSilhouettePlot = patch(axes, "Faces", FaceData, ...
-                "Vertices", VertexData, "FaceVertexCData", ColorArray, ...
-                "FaceColor", "flat", "EdgeColor", "none", ...
-                "FaceVertexAlphaData", AlphaArray, "FaceAlpha", "flat", ...
-                "AlphaDataMapping", "none");
+            hold(axes, "on");
+            for t = 1:length(VertexData)
+                CurrentVertexData = VertexData(t);
+                WholeSilhouettePlot = patch(axes, ...
+                    "Vertices", CurrentVertexData, ...
+                    "Faces", ...
+                    "FaceVertexCData", ColorArray, ...
+                    "FaceColor", "flat", "EdgeColor", "none", ...
+                    "FaceVertexAlphaData", AlphaArray, "FaceAlpha", ...
+                    "flat", "AlphaDataMapping", "none");
+            end
         end
         
     end
