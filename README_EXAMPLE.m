@@ -6,6 +6,11 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% This example can be run by opening MATLAB, making sure this file is in
+% the path (or in the Current Folder), and either hitting the "Run"
+% green-triangle button, or typing README_EXAMPLE.m into the CommandWindow
+% in MATLAB and hitting enter.
+
 % This is the SpaceTransformation that describes the map between motor
 % space and perceptual space
 spaceTransformation = SpaceTransformation(@TransformationFunction);
