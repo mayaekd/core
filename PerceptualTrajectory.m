@@ -86,7 +86,10 @@ classdef PerceptualTrajectory
         % Resulting point sets that we'll end up comparing should be
         % [1;2], [2;3], [3;4], [4;5], [6;9], [8;13], [10;17], [9;16], [8;15], [7;14], [11;10], [15;6], [19;2]
         % [1;4], [3;5], [5;6], [3;4], [1;2], [2;2], [3;2], [4;5], [5;8], [7;10], [9;12], [7;9], [5;6]
+        % But there's a question if this interpolation makes sense given
+        % that the trajectories being modeled can be discontinuous
         function DistanceVector = DistanceVectorToTrajectory(obj, OtherTrajectory)
+            assert(obj.Length > 1 && OtherTrajectory.Length > 1, "The trajectories have to have length greater than one for this")
             StartingCoordinateListA = obj.CoordinateMatrix;
                 % EX| StartingCoordinateListA = [1 4 10 7 19; 2 5 17 14 2]
             StartingCoordinateListB = OtherTrajectory.CoordinateMatrix;

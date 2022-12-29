@@ -276,8 +276,11 @@ classdef MotorSilhouette
                 ColorArray(t,:) = ColorRBG;
             end
 
+            AlphaMin = 0.3;
+            AlphaMax = 1;
+
             % Vertex & Face Data
-            [VertexData, FaceData, AlphaData] = obj.PlottingInfo();
+            [VertexData, FaceData, AlphaData] = obj.PlottingInfo(AlphaMin, AlphaMax);
 
             % AlphaArray are the opacity values, which are all 1 (fully
             % opaque) in this case
@@ -287,9 +290,10 @@ classdef MotorSilhouette
             hold(axes, "on");
             for t = 1:length(VertexData)
                 CurrentVertexData = VertexData(t);
+                CurrentFaceData = FaceData(t);
                 WholeSilhouettePlot = patch(axes, ...
                     "Vertices", CurrentVertexData, ...
-                    "Faces", ...
+                    "Faces", CurrentFaceData, ...
                     "FaceVertexCData", ColorArray, ...
                     "FaceColor", "flat", "EdgeColor", "none", ...
                     "FaceVertexAlphaData", AlphaArray, "FaceAlpha", ...

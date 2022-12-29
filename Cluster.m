@@ -270,7 +270,7 @@ classdef Cluster
                 % EX| for SilhouetteRegion = 1:6
                 DistanceFromCurrentTimeToRegion = SilhouetteRegion - Time;
 
-                % The amount of influence, based on its temoral distance, 
+                % The amount of influence, based on its temporal distance, 
                 % that this part of the silhouette has on the cluster
                 TemporalActivationScalar = ...
                     Silhouette.DropoffScalar( ...

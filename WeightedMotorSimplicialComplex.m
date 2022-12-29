@@ -160,7 +160,7 @@ classdef WeightedMotorSimplicialComplex
         end
         
         function ActivationFromDistance = DistanceToActivationFunction( ...
-                obj, Distance, HighestActivation, DropoffSlope)
+                ~, Distance, HighestActivation, DropoffSlope)
             ActivationFromDistance = max(0, HighestActivation - ( ...
                 DropoffSlope * Distance));
         end
